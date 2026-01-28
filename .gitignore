@@ -17,5 +17,6 @@ mlx_models/
 
 # Database & Data
 qdrant_storage/
+test_qdrant/
 data/raw/
 data/gold/
