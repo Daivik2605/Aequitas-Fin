@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & Mac junk
+.env
+.venv/
+env/
+.DS_Store
+
+# AI/ML Specifics (Do NOT push model weights)
+mlx_models/
+*.gguf
+*.bin
+*.pt
+
+# Database & Data
+qdrant_storage/
+data/raw/
+data/gold/
