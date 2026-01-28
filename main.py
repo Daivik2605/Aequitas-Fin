@@ -1,11 +1,19 @@
 """
 Main entry point for the Aequitas-Fin reasoning agent.
 """
+import logging
 from config.settings import settings
 from src.core.database import QdrantDatabase
 from src.core.models import LLMModels
 from src.reasoning.tools import TavilySearchTool, LocalRetrievalTool
 from src.reasoning.graph import create_reasoning_graph
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -46,8 +54,12 @@ def main():
                 max_results=settings.TAVILY_MAX_RESULTS
             )
             print("✓ Tavily search tool initialized")
-        except Exception as e:
+        except ValueError as e:
+            logger.warning(f"Tavily search tool not available: {e}")
             print(f"⚠ Tavily search tool not available: {e}")
+        except Exception as e:
+            logger.error(f"Error initializing Tavily: {e}")
+            print(f"⚠ Tavily search tool error: {e}")
     else:
         print("⚠ Tavily API key not set - web search disabled")
     
@@ -103,9 +115,8 @@ def main():
             print("\n\nInterrupted. Goodbye!")
             break
         except Exception as e:
-            print(f"\n❌ Error: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error processing query: {e}", exc_info=True)
+            print(f"\n❌ An error occurred. Please try again.")
 
 
 if __name__ == "__main__":

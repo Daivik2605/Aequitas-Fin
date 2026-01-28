@@ -7,6 +7,7 @@ This module builds a graph-based workflow with nodes for:
 - Web search
 - Answer generation
 """
+import logging
 from typing import Optional
 from langgraph.graph import StateGraph, END
 from src.reasoning.state import AgentState, create_initial_state
@@ -15,9 +16,11 @@ from src.reasoning.nodes import (
     rag_retrieval_node,
     web_search_node,
     generate_answer_node,
-    should_continue
+    route_next_node
 )
 from src.reasoning.tools import TavilySearchTool, LocalRetrievalTool
+
+logger = logging.getLogger(__name__)
 
 
 class ReasoningGraph:
@@ -49,6 +52,7 @@ class ReasoningGraph:
         self.retrieval_tool = retrieval_tool
         self.search_tool = search_tool
         self.graph = self._build_graph()
+        logger.info("Reasoning graph initialized")
     
     def _build_graph(self) -> StateGraph:
         """
@@ -69,6 +73,9 @@ class ReasoningGraph:
                 "retrieve",
                 lambda state: rag_retrieval_node(state, self.retrieval_tool)
             )
+            logger.debug("Added RAG retrieval node")
+        else:
+            logger.warning("RAG retrieval tool not available - retrieval disabled")
         
         # Add web search node if tool is available
         if self.search_tool:
@@ -76,6 +83,9 @@ class ReasoningGraph:
                 "search_web",
                 lambda state: web_search_node(state, self.search_tool)
             )
+            logger.debug("Added web search node")
+        else:
+            logger.warning("Web search tool not available - web search disabled")
         
         # Add answer generation node
         workflow.add_node(
@@ -89,7 +99,7 @@ class ReasoningGraph:
         # Add conditional edges from router
         workflow.add_conditional_edges(
             "router",
-            should_continue,
+            route_next_node,
             {
                 "retrieve": "retrieve" if self.retrieval_tool else "generate",
                 "search_web": "search_web" if self.search_tool else "generate",
@@ -124,6 +134,8 @@ class ReasoningGraph:
         # Create initial state
         initial_state = create_initial_state(query, max_iterations)
         
+        logger.info(f"Running graph for query: {query[:50]}")
+        
         # Run the graph
         result = self.graph.invoke(initial_state)
         
@@ -143,6 +155,8 @@ class ReasoningGraph:
         # Create initial state
         initial_state = create_initial_state(query, max_iterations)
         
+        logger.info(f"Running graph async for query: {query[:50]}")
+        
         # Run the graph asynchronously
         result = await self.graph.ainvoke(initial_state)
         
@@ -161,6 +175,8 @@ class ReasoningGraph:
         """
         # Create initial state
         initial_state = create_initial_state(query, max_iterations)
+        
+        logger.info(f"Streaming graph for query: {query[:50]}")
         
         # Stream the graph execution
         for state in self.graph.stream(initial_state):

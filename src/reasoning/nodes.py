@@ -1,10 +1,17 @@
 """
 Graph nodes for the LangGraph reasoning agent.
 """
+import logging
 from typing import Dict, Any
+from datetime import datetime
 from langchain.schema import HumanMessage, AIMessage
 from src.reasoning.state import AgentState
 from src.reasoning.tools import TavilySearchTool, LocalRetrievalTool
+
+logger = logging.getLogger(__name__)
+
+# Constants for content truncation
+MAX_CONTEXT_LENGTH = 500
 
 
 def router_node(state: AgentState) -> Dict[str, Any]:
@@ -27,7 +34,10 @@ def router_node(state: AgentState) -> Dict[str, Any]:
     # In production, this could use an LLM to make the decision
     
     # Check for keywords that suggest web search
-    web_keywords = ["current", "latest", "news", "today", "recent", "2024", "2025", "2026"]
+    # Use current year dynamically to avoid hardcoding
+    current_year = datetime.now().year
+    future_years = [str(current_year + i) for i in range(5)]
+    web_keywords = ["current", "latest", "news", "today", "recent"] + future_years
     needs_web = any(keyword in query.lower() for keyword in web_keywords)
     
     # If we don't have any results yet, try local retrieval first
@@ -39,6 +49,8 @@ def router_node(state: AgentState) -> Dict[str, Any]:
     # Otherwise, generate answer
     else:
         next_action = "generate"
+    
+    logger.debug(f"Router decided: {next_action} (iteration {iteration})")
     
     return {
         **state,
@@ -66,6 +78,8 @@ def rag_retrieval_node(state: AgentState, retrieval_tool: LocalRetrievalTool) ->
     # Add message to conversation history
     message = HumanMessage(content=f"Retrieved {len(documents)} documents from local database")
     
+    logger.info(f"RAG retrieval: {len(documents)} documents")
+    
     return {
         **state,
         "retrieved_docs": documents,
@@ -91,6 +105,8 @@ def web_search_node(state: AgentState, search_tool: TavilySearchTool) -> Dict[st
     
     # Add message to conversation history
     message = HumanMessage(content=f"Retrieved {len(results)} results from web search")
+    
+    logger.info(f"Web search: {len(results)} results")
     
     return {
         **state,
@@ -120,12 +136,20 @@ def generate_answer_node(state: AgentState, llm) -> Dict[str, Any]:
     if retrieved_docs:
         context_parts.append("## Local Knowledge Base:")
         for i, doc in enumerate(retrieved_docs[:3], 1):
-            context_parts.append(f"{i}. {doc[:500]}...")
+            # Truncate with note about truncation
+            truncated = doc[:MAX_CONTEXT_LENGTH]
+            if len(doc) > MAX_CONTEXT_LENGTH:
+                truncated += "... [truncated]"
+            context_parts.append(f"{i}. {truncated}")
     
     if web_results:
         context_parts.append("\n## Web Search Results:")
         for i, result in enumerate(web_results[:3], 1):
-            context_parts.append(f"{i}. {result[:500]}...")
+            # Truncate with note about truncation
+            truncated = result[:MAX_CONTEXT_LENGTH]
+            if len(result) > MAX_CONTEXT_LENGTH:
+                truncated += "... [truncated]"
+            context_parts.append(f"{i}. {truncated}")
     
     context = "\n".join(context_parts) if context_parts else "No additional context available."
     
@@ -143,8 +167,10 @@ Provide a comprehensive and accurate answer based on the available information. 
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         answer = response.content if hasattr(response, "content") else str(response)
+        logger.info("Generated answer successfully")
     except Exception as e:
-        answer = f"Error generating answer: {e}"
+        logger.error(f"Error generating answer: {e}", exc_info=True)
+        answer = "I apologize, but I encountered an issue while generating the answer. Please try again."
     
     # Add to message history
     ai_message = AIMessage(content=answer)
@@ -156,7 +182,7 @@ Provide a comprehensive and accurate answer based on the available information. 
     }
 
 
-def should_continue(state: AgentState) -> str:
+def route_next_node(state: AgentState) -> str:
     """
     Conditional edge function to determine next step in the graph.
     
@@ -172,6 +198,7 @@ def should_continue(state: AgentState) -> str:
     
     # Check if we've exceeded max iterations
     if iteration >= max_iterations:
+        logger.warning(f"Max iterations ({max_iterations}) reached")
         return "generate"
     
     # Route based on next_action

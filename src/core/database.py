@@ -1,9 +1,12 @@
 """
 Database module for Qdrant vector store connection and operations.
 """
+import logging
 from typing import List, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
+
+logger = logging.getLogger(__name__)
 
 
 class QdrantDatabase:
@@ -38,12 +41,15 @@ class QdrantDatabase:
         if path:
             # Use local persistent storage
             self.client = QdrantClient(path=path)
+            logger.info(f"Initialized Qdrant client with local storage: {path}")
         elif url:
             # Use cloud instance
             self.client = QdrantClient(url=url, api_key=api_key)
+            logger.info(f"Initialized Qdrant client with URL: {url}")
         else:
             # Use host:port connection
             self.client = QdrantClient(host=host, port=port)
+            logger.info(f"Initialized Qdrant client at {host}:{port}")
     
     def create_collection(
         self,
@@ -67,9 +73,10 @@ class QdrantDatabase:
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=vector_size, distance=distance)
             )
+            logger.info(f"Created collection: {collection_name}")
             return True
         except Exception as e:
-            print(f"Error creating collection: {e}")
+            logger.error(f"Error creating collection {collection_name}: {e}")
             return False
     
     def collection_exists(self, collection_name: str) -> bool:
@@ -85,7 +92,8 @@ class QdrantDatabase:
         try:
             collections = self.client.get_collections().collections
             return any(col.name == collection_name for col in collections)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error checking collection existence: {e}")
             return False
     
     def upsert_vectors(
@@ -108,9 +116,10 @@ class QdrantDatabase:
                 collection_name=collection_name,
                 points=points
             )
+            logger.info(f"Upserted {len(points)} vectors to {collection_name}")
             return True
         except Exception as e:
-            print(f"Error upserting vectors: {e}")
+            logger.error(f"Error upserting vectors to {collection_name}: {e}")
             return False
     
     def search(
@@ -139,9 +148,10 @@ class QdrantDatabase:
                 limit=limit,
                 score_threshold=score_threshold
             )
+            logger.debug(f"Search returned {len(results)} results from {collection_name}")
             return results
         except Exception as e:
-            print(f"Error searching vectors: {e}")
+            logger.error(f"Error searching {collection_name}: {e}")
             return []
     
     def delete_collection(self, collection_name: str) -> bool:
@@ -156,9 +166,10 @@ class QdrantDatabase:
         """
         try:
             self.client.delete_collection(collection_name=collection_name)
+            logger.info(f"Deleted collection: {collection_name}")
             return True
         except Exception as e:
-            print(f"Error deleting collection: {e}")
+            logger.error(f"Error deleting collection {collection_name}: {e}")
             return False
     
     def get_client(self) -> QdrantClient:

@@ -1,9 +1,12 @@
 """
 Tools for the reasoning agent: Tavily web search and local RAG retrieval.
 """
+import logging
 from typing import List, Optional
 from tavily import TavilyClient
 from langchain.tools import Tool
+
+logger = logging.getLogger(__name__)
 
 
 class TavilySearchTool:
@@ -20,9 +23,16 @@ class TavilySearchTool:
         Args:
             api_key: Tavily API key
             max_results: Maximum number of search results to return
+        
+        Raises:
+            ValueError: If API key is empty or invalid
         """
+        if not api_key or not api_key.strip():
+            raise ValueError("Tavily API key cannot be empty")
+        
         self.client = TavilyClient(api_key=api_key)
         self.max_results = max_results
+        logger.info("Initialized Tavily search tool")
     
     def search(self, query: str) -> List[str]:
         """
@@ -52,9 +62,10 @@ class TavilySearchTool:
                     formatted = f"Title: {title}\nURL: {url}\n{content}"
                     results.append(formatted)
             
+            logger.info(f"Tavily search returned {len(results)} results for query: {query[:50]}")
             return results
         except Exception as e:
-            print(f"Error during Tavily search: {e}")
+            logger.error(f"Error during Tavily search: {e}", exc_info=True)
             return []
     
     def as_langchain_tool(self) -> Tool:
@@ -103,6 +114,7 @@ class LocalRetrievalTool:
         self.collection_name = collection_name
         self.embeddings = embeddings
         self.top_k = top_k
+        logger.info(f"Initialized local retrieval tool for collection: {collection_name}")
     
     def retrieve(self, query: str) -> List[str]:
         """
@@ -117,7 +129,7 @@ class LocalRetrievalTool:
         try:
             # Check if collection exists
             if not self.database.collection_exists(self.collection_name):
-                print(f"Collection {self.collection_name} does not exist")
+                logger.warning(f"Collection {self.collection_name} does not exist")
                 return []
             
             # Embed the query
@@ -138,9 +150,10 @@ class LocalRetrievalTool:
                 elif hasattr(result, "payload") and "content" in result.payload:
                     documents.append(result.payload["content"])
             
+            logger.info(f"Retrieved {len(documents)} documents for query: {query[:50]}")
             return documents
         except Exception as e:
-            print(f"Error during local retrieval: {e}")
+            logger.error(f"Error during local retrieval: {e}", exc_info=True)
             return []
     
     def as_langchain_tool(self) -> Tool:
@@ -183,8 +196,11 @@ def create_tools(
     
     # Add Tavily search tool if API key provided
     if tavily_api_key:
-        tavily_tool = TavilySearchTool(api_key=tavily_api_key)
-        tools.append(tavily_tool.as_langchain_tool())
+        try:
+            tavily_tool = TavilySearchTool(api_key=tavily_api_key)
+            tools.append(tavily_tool.as_langchain_tool())
+        except ValueError as e:
+            logger.warning(f"Skipping Tavily tool: {e}")
     
     # Add local retrieval tool if database provided
     if database and embeddings:
