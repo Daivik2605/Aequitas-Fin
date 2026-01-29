@@ -6,8 +6,11 @@ __pycache__/
 # Environments & Mac junk
 .env
 .venv/
+venv/
+ENV/
 env/
 .DS_Store
+EOF
 
 # AI/ML Specifics (Do NOT push model weights)
 mlx_models/

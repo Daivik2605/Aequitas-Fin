@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # The Vector Database (Memory)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+    restart: always
+
+  # The Observability Layer (Tracing & Evaluation)
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: phoenix
+    ports:
+      - "6006:6006" # UI & OTLP HTTP
+      - "4317:4317" # OTLP gRPC
+    restart: always
