@@ -28,7 +28,7 @@ def process_cibc_reports(data_dir: str):
     # 2. Recreate Collection with Named Vectors
     print("🗑️ Resetting Qdrant collection for Named Vectors...")
     client.recreate_collection(
-        collection_name="cibc_reports",
+        collection_name="financial_reports",
         vectors_config={
             "local_bge": models.VectorParams(size=384, distance=models.Distance.COSINE),
             "openai": models.VectorParams(size=1536, distance=models.Distance.COSINE),
@@ -62,8 +62,11 @@ def process_cibc_reports(data_dir: str):
         print(f"☁️  Generating OpenAI embeddings for {len(texts)} chunks (batches of 100)...")
         openai_embeddings = get_openai_embeddings(texts)
 
-        # Metadata logic
-        year = pdf_file.parent.name.replace("FY", "")
+        # Metadata logic — derive company and fiscal year from folder structure:
+        # data/raw/{company}/FY{year}/file.pdf
+        fiscal_year_folder = pdf_file.parent.name          # e.g. "FY2025"
+        year = fiscal_year_folder.replace("FY", "")        # e.g. "2025"
+        company = pdf_file.parent.parent.name.lower()      # e.g. "cibc"
         points = []
 
         # 5. Build Qdrant Points
@@ -81,6 +84,7 @@ def process_cibc_reports(data_dir: str):
                     "text": element.text,
                     "metadata": {
                         "source": pdf_file.name,
+                        "company": company,
                         "fiscal_year": year,
                         "element_type": el_dict.get("type"),
                         "page_number": metadata.get("page_number")
@@ -89,7 +93,7 @@ def process_cibc_reports(data_dir: str):
             ))
 
         # 6. Upload
-        client.upsert(collection_name="cibc_reports", points=points)
+        client.upsert(collection_name="financial_reports", points=points)
         print(f"✅ Successfully indexed {len(points)} points from {pdf_file.name}")
 
 if __name__ == "__main__":

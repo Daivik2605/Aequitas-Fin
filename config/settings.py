@@ -15,7 +15,7 @@ class Settings:
     QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
     QDRANT_PATH = os.getenv("QDRANT_PATH", "./qdrant_storage")
-    QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "aequitas_documents")
+    QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "financial_reports")
     
     # LLM Settings
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

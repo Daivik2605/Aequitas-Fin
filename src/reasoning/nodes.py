@@ -11,7 +11,7 @@ from src.reasoning.tools import TavilySearchTool, LocalRetrievalTool
 logger = logging.getLogger(__name__)
 
 # Constants for content truncation
-MAX_CONTEXT_LENGTH = 500
+MAX_CONTEXT_LENGTH = 2000
 
 
 def router_node(state: AgentState) -> Dict[str, Any]:
@@ -135,7 +135,7 @@ def generate_answer_node(state: AgentState, llm) -> Dict[str, Any]:
     
     if retrieved_docs:
         context_parts.append("## Local Knowledge Base:")
-        for i, doc in enumerate(retrieved_docs[:3], 1):
+        for i, doc in enumerate(retrieved_docs, 1):
             # Truncate with note about truncation
             truncated = doc[:MAX_CONTEXT_LENGTH]
             if len(doc) > MAX_CONTEXT_LENGTH:

@@ -4,6 +4,7 @@ Main entry point for the Aequitas-Fin reasoning agent.
 import logging
 from config.settings import settings
 from src.core.database import QdrantDatabase
+from src.core.embeddings import FastEmbedWrapper
 from src.core.models import LLMModels
 from src.reasoning.tools import TavilySearchTool, LocalRetrievalTool
 from src.reasoning.graph import create_reasoning_graph
@@ -29,8 +30,8 @@ def main():
     
     # Initialize database
     print("\n[1/4] Initializing Qdrant database...")
-    db = QdrantDatabase(path=settings.QDRANT_PATH)
-    print(f"✓ Database initialized at {settings.QDRANT_PATH}")
+    db = QdrantDatabase(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+    print(f"✓ Database initialized at {settings.QDRANT_HOST}:{settings.QDRANT_PORT}")
     
     # Initialize LLM
     print("\n[2/4] Initializing LLM...")
@@ -63,10 +64,16 @@ def main():
     else:
         print("⚠ Tavily API key not set - web search disabled")
     
-    # Local retrieval tool (requires embeddings - placeholder for now)
-    retrieval_tool = None
-    print("⚠ Local retrieval requires embeddings - currently disabled")
-    print("  (Use langchain_community.embeddings to enable)")
+    # Local retrieval tool
+    print("\n[3b/4] Initializing embeddings and retrieval tool...")
+    embeddings = FastEmbedWrapper()
+    retrieval_tool = LocalRetrievalTool(
+        database=db,
+        collection_name=settings.QDRANT_COLLECTION,
+        embeddings=embeddings,
+        top_k=5
+    )
+    print(f"✓ Retrieval tool initialized (collection: {settings.QDRANT_COLLECTION})")
     
     # Build reasoning graph
     print("\n[4/4] Building reasoning graph...")

@@ -125,29 +125,38 @@ class QdrantDatabase:
     def search(
         self,
         collection_name: str,
-        query_vector: List[float],
+        query_vector,
         limit: int = 5,
         score_threshold: Optional[float] = None
     ) -> List:
         """
         Search for similar vectors in a collection.
-        
+
         Args:
             collection_name: Name of the collection
-            query_vector: Query vector for similarity search
+            query_vector: Either a plain list[float] or a (vector_name, list[float])
+                          tuple for named-vector collections.
             limit: Maximum number of results to return
             score_threshold: Minimum similarity score threshold
-            
+
         Returns:
             List of search results with scores and payloads
         """
         try:
-            results = self.client.search(
+            # Unpack named-vector tuple if provided
+            if isinstance(query_vector, tuple):
+                vector_name, vector = query_vector
+            else:
+                vector_name, vector = None, query_vector
+
+            response = self.client.query_points(
                 collection_name=collection_name,
-                query_vector=query_vector,
+                query=vector,
+                using=vector_name,
                 limit=limit,
-                score_threshold=score_threshold
+                score_threshold=score_threshold,
             )
+            results = response.points
             logger.debug(f"Search returned {len(results)} results from {collection_name}")
             return results
         except Exception as e:
