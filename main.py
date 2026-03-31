@@ -1,6 +1,7 @@
 """
 Main entry point for the Aequitas-Fin reasoning agent.
 """
+import argparse
 import logging
 from config.settings import settings
 from src.core.database import QdrantDatabase
@@ -18,9 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    """
-    Main function to demonstrate the Aequitas-Fin agent.
-    """
+    parser = argparse.ArgumentParser(description="Aequitas-Fin financial reasoning agent")
+    parser.add_argument("--model", default=None, help="Ollama model to use (overrides DEFAULT_MODEL in .env)")
+    args = parser.parse_args()
+
+    model_name = args.model or settings.DEFAULT_MODEL
+
     print("=" * 60)
     print("Aequitas-Fin - Financial Reasoning Agent")
     print("=" * 60)
@@ -40,8 +44,8 @@ def main():
         temperature=settings.MODEL_TEMPERATURE,
         max_tokens=settings.MODEL_MAX_TOKENS
     )
-    llm = models.get_default_model()
-    print(f"✓ LLM initialized: {settings.DEFAULT_MODEL}")
+    llm = models.get_default_model(model_name=model_name)
+    print(f"✓ LLM initialized: {model_name}")
     
     # Initialize tools
     print("\n[3/4] Initializing tools...")
