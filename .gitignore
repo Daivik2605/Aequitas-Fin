@@ -23,3 +23,6 @@ qdrant_storage/
 test_qdrant/
 data/raw/
 data/gold/
+
+# Local Claude Code configuration and worktrees
+.claude/
