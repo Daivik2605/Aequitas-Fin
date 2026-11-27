@@ -14,13 +14,12 @@ class Settings:
     # Qdrant Database Settings
     QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-    QDRANT_PATH = os.getenv("QDRANT_PATH", "./qdrant_storage")
     QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "financial_reports")
     
     # LLM Settings
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3")
-    MODEL_TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.7"))
+    MODEL_TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.1"))
     MODEL_MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", "2048"))
     
     # Tavily Search Settings
@@ -29,7 +28,7 @@ class Settings:
     
     # Retrieval Settings
     RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
-    VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", "384"))
+    RETRIEVAL_SCORE_THRESHOLD = float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.3"))
     
     # Agent Settings
     MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "5"))

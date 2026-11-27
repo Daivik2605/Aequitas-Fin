@@ -5,7 +5,14 @@ from typing import TypedDict, List, Optional, Annotated
 from langchain.schema import BaseMessage
 from operator import add
 
-
+class RetrievedChunk(TypedDict):
+    text: str
+    source: str
+    company: str
+    fiscal_year: str
+    page_number: Optional[int]
+    score: float
+    
 class AgentState(TypedDict):
     """
     State structure for the LangGraph agent.
@@ -21,7 +28,7 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add]
     
     # Retrieved documents from RAG
-    retrieved_docs: Optional[List[str]]
+    retrieved_docs: Optional[List[RetrievedChunk]]
     
     # Web search results
     web_results: Optional[List[str]]
@@ -29,7 +36,7 @@ class AgentState(TypedDict):
     # Decision on which tool to use
     next_action: Optional[str]
     
-    # Final answer
+   # Final answer
     answer: Optional[str]
     
     # Iteration counter to prevent infinite loops

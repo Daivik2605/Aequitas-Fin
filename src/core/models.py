@@ -96,14 +96,23 @@ class LLMModels:
             num_predict=max_tokens or self.max_tokens
         )
     
-    def get_default_model(self) -> ChatOllama:
+    def get_default_model(self, model_name: Optional[str] = None) -> ChatOllama:
         """
-        Get the default model (Llama-3).
-        
+        Get a ChatOllama instance for the given model name.
+
+        Args:
+            model_name: Ollama model tag (e.g. "llama3", "phi3:mini"). Defaults to Llama-3.
+
         Returns:
-            ChatOllama instance configured for Llama-3
+            ChatOllama instance
         """
-        return self.get_llama3()
+        name = model_name or ModelConfig.LLAMA3_MODEL
+        return ChatOllama(
+            model=name,
+            base_url=self.base_url,
+            temperature=self.temperature,
+            num_predict=self.max_tokens
+        )
 
 
 def get_llm(
