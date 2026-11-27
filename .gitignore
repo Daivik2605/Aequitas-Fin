@@ -10,7 +10,6 @@ venv/
 ENV/
 env/
 .DS_Store
-EOF
 
 # AI/ML Specifics (Do NOT push model weights)
 mlx_models/
@@ -23,6 +22,12 @@ qdrant_storage/
 test_qdrant/
 data/raw/
 data/gold/
+data/raw_backup/
+data/raw_pilot/
+data/silver/
+
+# Personal notes (Apple Pages)
+*.pages
 
 # Local Claude Code configuration and worktrees
 .claude/

@@ -75,7 +75,7 @@ def main():
         database=db,
         collection_name=settings.QDRANT_COLLECTION,
         embeddings=embeddings,
-        top_k=5
+        top_k=settings.RETRIEVAL_TOP_K
     )
     print(f"✓ Retrieval tool initialized (collection: {settings.QDRANT_COLLECTION})")
     
