@@ -5,6 +5,8 @@ import logging
 from typing import List, Optional
 from tavily import TavilyClient
 from langchain.tools import Tool
+from config.settings import settings
+from src.reasoning.state import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,8 @@ class LocalRetrievalTool:
         database,
         collection_name: str,
         embeddings,
-        top_k: int = 5
+        top_k: int = 5,
+        score_threshold: float = 0.3
     ):
         """
         Initialize local retrieval tool.
@@ -114,9 +117,35 @@ class LocalRetrievalTool:
         self.collection_name = collection_name
         self.embeddings = embeddings
         self.top_k = top_k
+        self.score_threshold = score_threshold
+        self._verify_collection()
         logger.info(f"Initialized local retrieval tool for collection: {collection_name}")
+
+    def _verify_collection(self) -> None:
+        """
+        Fail at construction, not at query time.
+
+        A missing collection is a configuration error, and the old behaviour —
+        log a warning and return [] — is indistinguishable from "your question
+        had no good matches". That turns a one-character typo in .env into an
+        afternoon spent debugging embeddings.
+
+        Queries the client directly rather than going through
+        database.collection_exists(), which catches exceptions and returns
+        False. Using it here would report a missing collection when Qdrant is
+        simply not running — a confidently wrong error message, which is worse
+        than no error message.
+        """
+        client = self.database.get_client()
+        existing = {c.name for c in client.get_collections().collections}
+        if self.collection_name not in existing:
+            raise ValueError(
+                f"Qdrant collection '{self.collection_name}' does not exist. "
+                f"Collections present: {sorted(existing) or 'none'}. "
+                f"Run ingestion first, or check QDRANT_COLLECTION in .env"
+            )
     
-    def retrieve(self, query: str) -> List[str]:
+    def retrieve(self, query: str) -> List[RetrievedChunk]:
         """
         Retrieve relevant documents from local database.
         
@@ -127,11 +156,9 @@ class LocalRetrievalTool:
             List of retrieved document contents
         """
         try:
-            # Check if collection exists
-            if not self.database.collection_exists(self.collection_name):
-                logger.warning(f"Collection {self.collection_name} does not exist")
-                return []
-            
+            # Existence is guaranteed at construction (_verify_collection), so
+            # there is no per-query check here. Anything that fails below is a
+            # runtime fault, not a misconfiguration.
             # Embed the query
             query_vector = self.embeddings.embed_query(query)
             
@@ -139,21 +166,32 @@ class LocalRetrievalTool:
             results = self.database.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
-                limit=self.top_k
+                limit=self.top_k,
+                score_threshold=self.score_threshold
             )
             
             # Extract document contents from results
-            documents = []
+            documents: List[RetrievedChunk] = []
             for result in results:
                 if hasattr(result, "payload") and "text" in result.payload:
-                    documents.append(result.payload["text"])
-                elif hasattr(result, "payload") and "content" in result.payload:
-                    documents.append(result.payload["content"])
+                    metadata = result.payload.get("metadata", {})
+                    chunk: RetrievedChunk = {
+                        "text": result.payload["text"],
+                        "source": metadata.get("source", ""),
+                        "company": metadata.get("company", ""),
+                        "fiscal_year": metadata.get("fiscal_year", ""),
+                        "page_number": metadata.get("page_number"),
+                        "score": result.score,
+                    }
+                    documents.append(chunk)
             
             logger.info(f"Retrieved {len(documents)} documents for query: {query[:50]}")
             return documents
         except Exception as e:
-            logger.error(f"Error during local retrieval: {e}", exc_info=True)
+            # Degrade rather than crash the agent loop, but make the log say
+            # RETRIEVAL FAILED so an empty result set is never mistaken for
+            # "nothing matched".
+            logger.error(f"RETRIEVAL FAILED for query {query[:50]!r}: {e}", exc_info=True)
             return []
     
     def as_langchain_tool(self) -> Tool:
@@ -207,7 +245,9 @@ def create_tools(
         retrieval_tool = LocalRetrievalTool(
             database=database,
             collection_name=collection_name,
-            embeddings=embeddings
+            embeddings=embeddings,
+            top_k=settings.RETRIEVAL_TOP_K,
+            score_threshold=settings.RETRIEVAL_SCORE_THRESHOLD
         )
         tools.append(retrieval_tool.as_langchain_tool())
     
